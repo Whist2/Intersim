@@ -1,0 +1,2 @@
+[console_scripts]
+terasim-service = terasim_service.__main__:main

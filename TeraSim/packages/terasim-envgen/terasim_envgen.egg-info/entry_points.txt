@@ -1,0 +1,4 @@
+[console_scripts]
+terasim-mapgen = terasim_envgen.cli:map_command
+terasim-scenario = terasim_envgen.cli:scenario_command
+terasim-traffic = terasim_envgen.cli:traffic_command
