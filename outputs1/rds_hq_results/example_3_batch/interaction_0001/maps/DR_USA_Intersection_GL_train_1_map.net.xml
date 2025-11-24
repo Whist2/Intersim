@@ -1,0 +1,74 @@
+<?xml version="1.0" ?>
+<net version="1.16">
+  <location netOffset="985.09,988.42" convBoundary="884.82,914.02,1085.37,1062.82" origBoundary="884.82,914.02,1085.37,1062.82" projParameter="!"/>
+  <edge id="edge_h0" from="n_h0_0" to="n_h0_1">
+    <lane id="edge_h0_0" index="0" speed="13.89" length="200.55" shape="884.82,914.02 1085.37,914.02"/>
+  </edge>
+  <edge id="edge_h1" from="n_h1_0" to="n_h1_1">
+    <lane id="edge_h1_0" index="0" speed="13.89" length="200.55" shape="884.82,951.22 1085.37,951.22"/>
+  </edge>
+  <edge id="edge_h2" from="n_h2_0" to="n_h2_1">
+    <lane id="edge_h2_0" index="0" speed="13.89" length="200.55" shape="884.82,988.42 1085.37,988.42"/>
+  </edge>
+  <edge id="edge_h3" from="n_h3_0" to="n_h3_1">
+    <lane id="edge_h3_0" index="0" speed="13.89" length="200.55" shape="884.82,1025.62 1085.37,1025.62"/>
+  </edge>
+  <edge id="edge_h4" from="n_h4_0" to="n_h4_1">
+    <lane id="edge_h4_0" index="0" speed="13.89" length="200.55" shape="884.82,1062.82 1085.37,1062.82"/>
+  </edge>
+  <edge id="edge_v0" from="n_v0_0" to="n_v0_1">
+    <lane id="edge_v0_0" index="0" speed="13.89" length="148.79" shape="884.82,914.02 884.82,1062.82"/>
+  </edge>
+  <edge id="edge_v1" from="n_v1_0" to="n_v1_1">
+    <lane id="edge_v1_0" index="0" speed="13.89" length="148.79" shape="934.96,914.02 934.96,1062.82"/>
+  </edge>
+  <edge id="edge_v2" from="n_v2_0" to="n_v2_1">
+    <lane id="edge_v2_0" index="0" speed="13.89" length="148.79" shape="985.09,914.02 985.09,1062.82"/>
+  </edge>
+  <edge id="edge_v3" from="n_v3_0" to="n_v3_1">
+    <lane id="edge_v3_0" index="0" speed="13.89" length="148.79" shape="1035.23,914.02 1035.23,1062.82"/>
+  </edge>
+  <edge id="edge_v4" from="n_v4_0" to="n_v4_1">
+    <lane id="edge_v4_0" index="0" speed="13.89" length="148.79" shape="1085.37,914.02 1085.37,1062.82"/>
+  </edge>
+  <junction id="n_h0_0" type="priority" x="884.82" y="914.02" incLanes="" intLanes="" shape="884.82,914.02"/>
+  <junction id="n_h0_1" type="priority" x="1085.37" y="914.02" incLanes="edge_h0_0" intLanes="" shape="1085.37,914.02"/>
+  <junction id="n_h1_0" type="priority" x="884.82" y="951.22" incLanes="" intLanes="" shape="884.82,951.22"/>
+  <junction id="n_h1_1" type="priority" x="1085.37" y="951.22" incLanes="edge_h1_0" intLanes="" shape="1085.37,951.22"/>
+  <junction id="n_h2_0" type="priority" x="884.82" y="988.42" incLanes="" intLanes="" shape="884.82,988.42"/>
+  <junction id="n_h2_1" type="priority" x="1085.37" y="988.42" incLanes="edge_h2_0" intLanes="" shape="1085.37,988.42"/>
+  <junction id="n_h3_0" type="priority" x="884.82" y="1025.62" incLanes="" intLanes="" shape="884.82,1025.62"/>
+  <junction id="n_h3_1" type="priority" x="1085.37" y="1025.62" incLanes="edge_h3_0" intLanes="" shape="1085.37,1025.62"/>
+  <junction id="n_h4_0" type="priority" x="884.82" y="1062.82" incLanes="" intLanes="" shape="884.82,1062.82"/>
+  <junction id="n_h4_1" type="priority" x="1085.37" y="1062.82" incLanes="edge_h4_0" intLanes="" shape="1085.37,1062.82"/>
+  <junction id="n_v0_0" type="priority" x="884.82" y="914.02" incLanes="" intLanes="" shape="884.82,914.02"/>
+  <junction id="n_v0_1" type="priority" x="884.82" y="1062.82" incLanes="edge_v0_0" intLanes="" shape="884.82,1062.82"/>
+  <junction id="n_v1_0" type="priority" x="934.96" y="914.02" incLanes="" intLanes="" shape="934.96,914.02"/>
+  <junction id="n_v1_1" type="priority" x="934.96" y="1062.82" incLanes="edge_v1_0" intLanes="" shape="934.96,1062.82"/>
+  <junction id="n_v2_0" type="priority" x="985.09" y="914.02" incLanes="" intLanes="" shape="985.09,914.02"/>
+  <junction id="n_v2_1" type="priority" x="985.09" y="1062.82" incLanes="edge_v2_0" intLanes="" shape="985.09,1062.82"/>
+  <junction id="n_v3_0" type="priority" x="1035.23" y="914.02" incLanes="" intLanes="" shape="1035.23,914.02"/>
+  <junction id="n_v3_1" type="priority" x="1035.23" y="1062.82" incLanes="edge_v3_0" intLanes="" shape="1035.23,1062.82"/>
+  <junction id="n_v4_0" type="priority" x="1085.37" y="914.02" incLanes="" intLanes="" shape="1085.37,914.02"/>
+  <junction id="n_v4_1" type="priority" x="1085.37" y="1062.82" incLanes="edge_v4_0" intLanes="" shape="1085.37,1062.82"/>
+  <junction id="traj_1_10_s" type="priority" x="995.48" y="995.68" incLanes="" intLanes="" shape="995.48,995.68"/>
+  <junction id="traj_1_10_e" type="priority" x="951.45" y="1003.58" incLanes="" intLanes="" shape="951.45,1003.58"/>
+  <edge id="traj_1_10" from="traj_1_10_s" to="traj_1_10_e">
+    <lane id="traj_1_10_0" index="0" speed="13.89" length="44.73" shape="995.48,995.68 994.11,995.94 992.74,996.20 991.38,996.45 990.02,996.71 988.66,996.96 987.32,997.20 985.97,997.45 984.63,997.69 983.29,997.93 981.96,998.17 980.64,998.41 979.32,998.65 978.00,998.88 976.69,999.12 975.38,999.35 974.08,999.58 972.78,999.81 971.49,1000.04 970.20,1000.27 968.92,1000.50 967.64,1000.72 966.37,1000.95 965.10,1001.17 963.84,1001.40 962.58,1001.62 961.33,1001.84 960.08,1002.07 958.84,1002.28 957.60,1002.50 956.37,1002.72 955.13,1002.94 953.91,1003.15 952.68,1003.37 951.45,1003.58"/>
+  </edge>
+  <junction id="traj_1_12_s" type="priority" x="1035.37" y="988.26" incLanes="" intLanes="" shape="1035.37,988.26"/>
+  <junction id="traj_1_12_e" type="priority" x="1004.78" y="993.71" incLanes="" intLanes="" shape="1004.78,993.71"/>
+  <edge id="traj_1_12" from="traj_1_12_s" to="traj_1_12_e">
+    <lane id="traj_1_12_0" index="0" speed="13.89" length="31.07" shape="1035.37,988.26 1034.16,988.47 1032.94,988.68 1031.73,988.88 1030.52,989.09 1029.30,989.30 1028.08,989.51 1026.87,989.73 1025.65,989.94 1024.43,990.15 1023.21,990.37 1021.99,990.59 1020.76,990.80 1019.54,991.02 1018.32,991.24 1017.09,991.46 1015.86,991.68 1014.63,991.90 1013.40,992.12 1012.17,992.34 1010.94,992.57 1009.71,992.79 1008.48,993.02 1007.24,993.25 1006.01,993.48 1004.78,993.71"/>
+  </edge>
+  <junction id="traj_1_2_s" type="priority" x="975.84" y="994.42" incLanes="" intLanes="" shape="975.84,994.42"/>
+  <junction id="traj_1_2_e" type="priority" x="950.47" y="1003.52" incLanes="" intLanes="" shape="950.47,1003.52"/>
+  <edge id="traj_1_2" from="traj_1_2_s" to="traj_1_2_e">
+    <lane id="traj_1_2_0" index="0" speed="13.89" length="27.03" shape="975.84,994.42 974.88,994.93 973.90,995.44 972.88,995.94 971.83,996.43 970.75,996.92 969.65,997.40 968.51,997.87 967.35,998.33 966.17,998.78 964.96,999.23 963.73,999.66 962.47,1000.09 961.20,1000.51 959.90,1000.91 958.59,1001.31 957.27,1001.71 955.93,1002.09 954.58,1002.46 953.22,1002.82 951.84,1003.18 950.47,1003.52"/>
+  </edge>
+  <junction id="traj_1_8_s" type="priority" x="1008.10" y="977.75" incLanes="" intLanes="" shape="1008.10,977.75"/>
+  <junction id="traj_1_8_e" type="priority" x="1011.83" y="964.02" incLanes="" intLanes="" shape="1011.83,964.02"/>
+  <edge id="traj_1_8" from="traj_1_8_s" to="traj_1_8_e">
+    <lane id="traj_1_8_0" index="0" speed="13.89" length="14.34" shape="1008.10,977.75 1008.49,977.07 1008.85,976.37 1009.19,975.66 1009.50,974.92 1009.79,974.16 1010.06,973.39 1010.30,972.60 1010.53,971.79 1010.74,970.97 1010.93,970.13 1011.10,969.28 1011.26,968.42 1011.40,967.55 1011.53,966.67 1011.64,965.79 1011.74,964.91 1011.83,964.02"/>
+  </edge>
+</net>
