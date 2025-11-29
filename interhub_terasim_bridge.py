@@ -22,6 +22,7 @@ import imageio
 from shapely.geometry import box as shapely_box, LineString
 from matplotlib import patches
 from trajdata import MapAPI
+import math
 
 # InterHub / trajdata dependencies
 from trajdata.data_structures import Scene
@@ -461,16 +462,28 @@ class InterHubToTeraSimBridge:
                 if rel_dist > agent_clip_distance:
                     continue
 
-                # Extract heading
-                heading_val = float(raw_state[heading_idx])
-                angle_deg = float(np.degrees(heading_val))
+                # Calculate speed and heading (prefer velocity-based to match TeraSim/SUMO)
+                spspeed = 0.0
+                angle_deg = 0.0
 
-                # Calculate speed from velocity
-                speed = 0.0
                 if vx_idx is not None and vy_idx is not None:
                     vx = float(raw_state[vx_idx])
                     vy = float(raw_state[vy_idx])
-                    speed = float(np.sqrt(vx**2 + vy**2))
+                    speed = float(math.hypot(vx, vy))
+
+                    if speed > 1e-3:
+                        # 数学坐标下的角度：0 在 +X(东)，逆时针增大；atan2(y, x)
+                        theta_math_deg = math.degrees(math.atan2(vy, vx))
+                        # 转成 SUMO 约定：0 在北(+Y)，顺时针增大
+                        angle_deg = (90.0 - theta_math_deg) % 360.0
+
+                # 如果速度太小或没有 vx/vy，就退回用 heading（同样做坐标系转换）
+                if speed <= 1e-3 and heading_idx is not None:
+                    heading_val = float(raw_state[heading_idx])
+                    # 这里假定 heading 也是数学坐标系：0 在 +X，逆时针
+                    heading_math_deg = math.degrees(heading_val)
+                    angle_deg = (90.0 - heading_math_deg) % 360.0
+
 
                 # Get vehicle dimensions
                 dims = self.VEHICLE_DIMENSIONS.get(
@@ -1007,6 +1020,124 @@ class InterHubToTeraSimBridge:
 
         # Return first agent if no vehicle found
         return list(agents_all_present)[0]
+    def _render_scene_preview_image(
+        self,
+        scene: Scene,
+        bounds: Dict[str, float],
+        vec_map=None,
+        snapshot_time: Optional[float] = None,
+    ) -> np.ndarray:
+        """
+        渲染一张静态场景缩略图：
+        - 背景：路网轮廓
+        - 前景：矩形车辆（在 snapshot_time 时刻）
+
+        返回值：
+            image: (H, W, 3) 的 uint8 RGB 图像数组
+        """
+        import matplotlib.pyplot as plt
+
+        dt = scene.dt
+        scene_duration = scene.length_timesteps * dt
+
+        if snapshot_time is None:
+            snapshot_time = scene_duration * 0.5
+
+        snapshot_time = max(0.0, min(snapshot_time, max(0.0, scene_duration - dt)))
+        t_idx = int(snapshot_time / dt)
+
+        scene_cache = DataFrameCache(
+            cache_path=self.cache_path,
+            scene=scene,
+        )
+        col = scene_cache.column_dict
+        x_idx = col["x"]
+        y_idx = col["y"]
+        heading_idx = col.get("heading")
+        if heading_idx is None:
+            for key in ["yaw", "theta", "phi"]:
+                if key in col:
+                    heading_idx = col[key]
+                    break
+        length_idx = col.get("length")
+        width_idx = col.get("width")
+
+        # margin 和 BEV 一致
+        margin_x = max(5.0, 0.1 * max(1e-3, bounds["max_x"] - bounds["min_x"]))
+        margin_y = max(5.0, 0.1 * max(1e-3, bounds["max_y"] - bounds["min_y"]))
+
+        if vec_map is None:
+            vec_map = self._get_vec_map_for_scene(scene)
+
+        agents_present = scene.agent_presence[t_idx]
+
+        fig, ax = plt.subplots(figsize=(3, 3), dpi=100)
+
+        # 背景路网
+        self._draw_map_background(ax, vec_map, bounds)
+
+        # 矩形车辆
+        for agent_meta in agents_present:
+            name = agent_meta.name
+            try:
+                state = scene_cache.get_raw_state(agent_id=name, scene_ts=t_idx)
+            except Exception:
+                continue
+
+            x = float(state[x_idx])
+            y = float(state[y_idx])
+
+            if heading_idx is not None:
+                heading = float(state[heading_idx])
+            else:
+                heading = 0.0
+
+            # 车辆尺寸：优先用状态里的 length/width，其次默认
+            if length_idx is not None:
+                length = float(state[length_idx])
+            else:
+                agent_type = AgentType.VEHICLE
+                if name in scene.agents and hasattr(scene.agents[name], "agent_type"):
+                    agent_type = scene.agents[name].agent_type
+                length = self.VEHICLE_DIMENSIONS.get(
+                    agent_type, self.VEHICLE_DIMENSIONS[AgentType.VEHICLE]
+                )["length"]
+
+            if width_idx is not None:
+                width = float(state[width_idx])
+            else:
+                agent_type = AgentType.VEHICLE
+                if name in scene.agents and hasattr(scene.agents[name], "agent_type"):
+                    agent_type = scene.agents[name].agent_type
+                width = self.VEHICLE_DIMENSIONS.get(
+                    agent_type, self.VEHICLE_DIMENSIONS[AgentType.VEHICLE]
+                )["width"]
+
+            poly = self._vehicle_polygon(x, y, heading, length=length, width=width)
+            rect = patches.Polygon(
+                poly,
+                closed=True,
+                zorder=10,
+                facecolor="#3868A6",
+                edgecolor="none",
+                alpha=0.9,
+            )
+            ax.add_patch(rect)
+
+        ax.set_aspect("equal", "box")
+        ax.set_xlim(bounds["min_x"] - margin_x, bounds["max_x"] + margin_x)
+        ax.set_ylim(bounds["min_y"] - margin_y, bounds["max_y"] + margin_y)
+        ax.axis("off")
+
+        fig.canvas.draw()
+        w, h = fig.canvas.get_width_height()
+        buf = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
+        buf = buf.reshape(h, w, 4)
+        image = buf[..., :3].copy()
+        plt.close(fig)
+
+        return image
+
     def _get_vec_map_for_scene(self, scene: Scene):
         """
         使用 InterHub 同款方式，从 trajdata MapAPI 里拿当前场景的矢量路网。
@@ -1569,6 +1700,226 @@ class InterHubToTeraSimBridge:
         return names[selected_idx["idx"]]
 
 
+    def interactive_select_scene_with_gif(
+        self,
+        time_start: float,
+        time_end: float,
+        preview_output_dir: Union[str, Path],
+        max_frames: int = 60,  # 参数保留，但不再用 GIF
+        fps: int = 5,          # 参数保留，但不再用 GIF
+    ) -> int:
+        """
+        交互式选择场景（静态缩略图版本）：
+
+        - 不再使用 GIF，只渲染一张静态预览图；
+        - 所有场景以网格方式布局，类似 Windows 图标；
+        - 底部有滑动条（Slider），用于翻页浏览场景；
+        - 点击任意缩略图，即选中该场景并关闭窗口。
+
+        操作方式：
+          - 鼠标左键点击某个缩略图：选中该场景并关闭窗口；
+          - 拖动底部滑动条：切换不同页的场景缩略图；
+          - q 或 Esc：取消（抛出异常）。
+        """
+        import matplotlib.pyplot as plt
+        from matplotlib.widgets import Slider
+        import math
+
+        preview_output_dir = Path(preview_output_dir)
+        preview_output_dir.mkdir(parents=True, exist_ok=True)
+
+        num_scenes = self.num_scenes
+        if num_scenes == 0:
+            raise ValueError("No scenes found in InterHub cache for scene selection.")
+
+        # ------------------------------------------------------------------
+        # 1) 预先为所有场景生成静态缩略图（路网 + 矩形车辆）
+        # ------------------------------------------------------------------
+        previews: List[Dict[str, Any]] = []
+
+        if self.verbose:
+            print(f"[Bridge] Generating static previews for {num_scenes} scenes...")
+
+        snapshot_time = 0.5 * (time_start + time_end)
+
+        for s_idx in range(num_scenes):
+            scene_tag = self.scenes_list[s_idx]
+            scene_name = getattr(scene_tag, "name", f"scene_{s_idx}")
+            scene: Scene = self.env_cache.load_scene(
+                self.env_name, scene_name, scene_dt=self.scene_dt
+            )
+
+            # 用 snapshot_time 生成 BEV，拿到 bounds
+            positions, bounds, actual_t = self._build_bev_for_scene(
+                scene=scene,
+                snapshot_time=snapshot_time,
+                vehicles_only=True,
+            )
+
+            vec_map = self._get_vec_map_for_scene(scene)
+            img = self._render_scene_preview_image(
+                scene=scene,
+                bounds=bounds,
+                vec_map=vec_map,
+                snapshot_time=actual_t,
+            )
+
+            previews.append(
+                {
+                    "scene_idx": s_idx,
+                    "scene_name": scene_name,
+                    "image": img,
+                }
+            )
+
+        if self.verbose:
+            print("[Bridge] Previews generated. Launching scene selection GUI...")
+
+        # ------------------------------------------------------------------
+        # 2) 构建 GUI：网格缩略图 + 底部 Slider
+        # ------------------------------------------------------------------
+        # 网格布局：行列数可以按需调整
+        thumbs_per_row = 4
+        thumbs_per_col = 3
+        thumbs_per_page = thumbs_per_row * thumbs_per_col
+
+        num_pages = max(1, math.ceil(num_scenes / thumbs_per_page))
+
+        fig = plt.figure(figsize=(10, 8))
+        try:
+            fig.canvas.manager.set_window_title("Select Scene (click thumbnail)")
+        except Exception:
+            pass
+
+        # 网格区域使用 gridspec，底部留出 slider 的空间
+        import matplotlib.gridspec as gridspec
+
+        gs = gridspec.GridSpec(
+            nrows=thumbs_per_col,
+            ncols=thumbs_per_row,
+            figure=fig,
+            bottom=0.15,  # 底下留出 slider 区域
+            top=0.95,
+            left=0.05,
+            right=0.95,
+            hspace=0.4,
+            wspace=0.3,
+        )
+
+        axes_grid: List[plt.Axes] = []
+        for r in range(thumbs_per_col):
+            for c in range(thumbs_per_row):
+                ax = fig.add_subplot(gs[r, c])
+                ax.axis("off")
+                axes_grid.append(ax)
+
+        # 底部 slider
+        slider_ax = fig.add_axes([0.15, 0.05, 0.7, 0.03])
+        slider = Slider(
+            ax=slider_ax,
+            label="Page",
+            valmin=0,
+            valmax=max(num_pages - 1, 0),
+            valinit=0,
+            valstep=1,
+        )
+
+        # 状态
+        state = {
+            "page": 0,
+            "selected_idx": None,
+            "axes_to_scene": {},  # ax -> global scene_idx
+        }
+
+        title_text = fig.suptitle(
+            "Scene selection (click a thumbnail; use slider to change page)",
+            fontsize=11,
+        )
+
+        def update_page(page_idx: int):
+            """根据 page_idx 更新当前页显示的缩略图。"""
+            page_idx = int(page_idx)
+            state["page"] = page_idx
+            state["axes_to_scene"].clear()
+
+            start = page_idx * thumbs_per_page
+            end = min(start + thumbs_per_page, num_scenes)
+
+            for i, ax in enumerate(axes_grid):
+                global_idx = start + i
+                ax.clear()
+                ax.axis("off")
+
+                if global_idx < end:
+                    prev = previews[global_idx]
+                    img = prev["image"]
+                    scene_name = prev["scene_name"]
+                    scene_idx_global = prev["scene_idx"]
+
+                    ax.imshow(img)
+                    # 显示场景名（过长的话截断）
+                    short_name = scene_name
+                    if len(short_name) > 25:
+                        short_name = short_name[:22] + "..."
+                    ax.set_title(
+                        f"{scene_idx_global}: {short_name}",
+                        fontsize=8,
+                        pad=4,
+                    )
+                    ax.axis("off")
+
+                    state["axes_to_scene"][ax] = scene_idx_global
+                else:
+                    # 该格子没有对应场景，保持空白
+                    pass
+
+            title_text.set_text(
+                f"Scene selection (page {page_idx+1}/{num_pages}) "
+                f"- click a thumbnail to select"
+            )
+            fig.canvas.draw_idle()
+
+        # 初始化第一页
+        update_page(0)
+
+        def on_slider_change(val):
+            update_page(int(val))
+
+        slider.on_changed(on_slider_change)
+
+        def on_click(event):
+            if event.inaxes is None:
+                return
+            ax = event.inaxes
+            if ax in state["axes_to_scene"]:
+                scene_idx_global = state["axes_to_scene"][ax]
+                state["selected_idx"] = scene_idx_global
+                if self.verbose:
+                    print(f"[Bridge] Selected scene index: {scene_idx_global}")
+                plt.close(fig)
+
+        def on_key(event):
+            # 允许 q / Esc 取消
+            if event.key in ("q", "escape"):
+                state["selected_idx"] = None
+                if self.verbose:
+                    print("[Bridge] Scene selection cancelled by user.")
+                plt.close(fig)
+
+        fig.canvas.mpl_connect("button_press_event", on_click)
+        fig.canvas.mpl_connect("key_press_event", on_key)
+
+        plt.show()  # 阻塞直到窗口关闭
+
+        if state["selected_idx"] is None:
+            raise RuntimeError(
+                "No scene was selected. "
+                "Please run again and click a thumbnail to select a scene."
+            )
+
+        return int(state["selected_idx"])
+
+
 
     def interactive_select_ego_and_generate_rds_hq(
         self,
@@ -1892,9 +2243,11 @@ def convert_interhub_scene_to_rds_hq(
     )
 
 
+from typing import Optional  # 顶部如果还没有 Optional 记得 import 一下
+
 def interactive_convert_interhub_scene_to_rds_hq(
     cache_path: Union[str, Path],
-    scene_idx: int,
+    scene_idx: Optional[int],
     time_start: float,
     time_end: float,
     output_dir: Union[str, Path],
@@ -1906,10 +2259,12 @@ def interactive_convert_interhub_scene_to_rds_hq(
     camera_setting: str = "default",
 ) -> Path:
     """
-    交互版本：
+    交互版本（扩展）：
 
-    1. 弹出鸟瞰图 GUI，点击选中 ego 车辆（高亮显示）；
-    2. 使用用户选择的 ego 生成 RDS-HQ。
+    1. 如果 scene_idx 为 None，则先弹出“场景选择 + GIF 预览”GUI，
+       让用户在本地所有 InterHub 场景中选择一个；
+    2. 然后对选中的场景再弹出 BEV GUI，点击选中 ego 车辆（高亮）；
+    3. 最后使用“方案 A 调整后的时间窗口” + 选中的 ego 生成 RDS-HQ。
     """
     bridge = InterHubToTeraSimBridge(
         interhub_cache_path=cache_path,
@@ -1917,6 +2272,17 @@ def interactive_convert_interhub_scene_to_rds_hq(
         verbose=True,
     )
 
+    # ✅ 关键：如果 scene_idx 为 None，先让用户在 GUI 里选择一个场景
+    if scene_idx is None:
+        scene_idx = bridge.interactive_select_scene_with_gif(
+            time_start=time_start,
+            time_end=time_end,
+            preview_output_dir=output_dir,
+            max_frames=60,
+            fps=5,
+        )
+
+    # 到这里 scene_idx 一定是 int，不会再是 None
     return bridge.interactive_select_ego_and_generate_rds_hq(
         scene_idx=scene_idx,
         time_start=time_start,
